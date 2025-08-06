@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import LevelScene from './LevelScene';
 
 export default class MainScene extends Phaser.Scene {
     private loadingBar!: Phaser.GameObjects.Graphics;
@@ -105,7 +106,7 @@ export default class MainScene extends Phaser.Scene {
             }
             
             // Transition to next scene (change this to your actual next scene)
-            this.scene.start('GameScene'); // or whatever your next scene is called
+            this.scene.start('LevelScene'); // or whatever your next scene is called
         });
     }
 

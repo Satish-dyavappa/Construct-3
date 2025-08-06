@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import MainScene from "./scenes/MainScene";
+import LevelScene from "./scenes/LevelScene";
  
  
 const config: Phaser.Types.Core.GameConfig = {
@@ -25,7 +26,7 @@ const config: Phaser.Types.Core.GameConfig = {
     }
     
   },
-  scene: [MainScene]
+  scene: [MainScene,LevelScene]
 
 };
 
