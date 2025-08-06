@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui, viewport-fit=cover">
+    <title>Construct 3</title>
+    <meta charset="utf-8">
+    <style>
+      @font-face {
+        font-family: 'Kabel';
+        src: url('assets/Fonts/baker_book.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      @font-face {
+      font-family: 'Felt';
+      src: url('assets/Fonts/Marker_Felt.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+      html, body, #game-container, canvas {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      touch-action: none;
+    }
+    </style>
+  </head>
+  <body>
+    <div style="font-family: 'Kabel'; position: absolute; left: -1000px; visibility: hidden;">.</div>
+    <div style="font-family: 'Felt'; position: absolute; left: -1000px; visibility: hidden;">.</div>
+    <div id="game-container"></div>
+    <div id="fps" style="position:fixed;top:10px;left:10px;color:#fff;font-size:18px;z-index:9999;font-family:monospace;"></div>
+  </body>
+</html>
