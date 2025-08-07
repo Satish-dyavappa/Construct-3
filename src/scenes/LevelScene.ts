@@ -76,35 +76,46 @@ export default class LevelScene extends Phaser.Scene {
         const bg = this.add.image(width / 2, height / 2, 'prison-bg');
         bg.setDisplaySize(width, height);
     }
+private createCells(width: number, height: number): void {
+    // Clear previous cells to avoid duplicates after restart
+    this.cells.forEach(cell => cell.destroy());
+    this.cells = [];
 
-    private createCells(width: number, height: number): void {
-        const cellSpacing = width * LevelScene.CELL_SPACING_RATIO;
-        const startX = width * LevelScene.CELL_START_X_RATIO;
-        const cellY = height * LevelScene.CELL_Y_RATIO;
+    const cellSpacing = width * LevelScene.CELL_SPACING_RATIO;
+    const startX = width * LevelScene.CELL_START_X_RATIO;
+    const cellY = height * LevelScene.CELL_Y_RATIO;
 
-        for (let i = 0; i < LevelScene.CELL_COUNT; i++) {
-            const cellX = startX + (i * cellSpacing);
-            
-            const cellContainer = this.add.container(cellX, cellY);
-            
-            // Create cell using uncompleted block image
-            const cellBlock = this.add.image(0, 0, 'uncompleted-block');
-            cellBlock.setScale(LevelScene.CELL_SCALE);
-            cellContainer.add(cellBlock);
-            
-            // Add cell number above the block
-            this.createCellNumber(cellContainer, cellBlock, i + 1);
-            
-            // Add status icons (wrong/right)
-            this.createStatusIcons(cellContainer, cellBlock);
-            
-            // Make cell interactive
-            cellBlock.setInteractive();
-            cellBlock.on('pointerdown', () => this.onCellClick(i, cellContainer, cellBlock));
-            
-            this.cells.push(cellContainer);
-        }
+    // --- Get completed levels from localStorage ---
+    const completedLevels: number[] = JSON.parse(localStorage.getItem('completedLevels') || '[]');
+    // ---
+
+    for (let i = 0; i < LevelScene.CELL_COUNT; i++) {
+        const cellX = startX + (i * cellSpacing);
+
+        const cellContainer = this.add.container(cellX, cellY);
+
+        // --- Use completed-block if completed ---
+        const isCompleted = completedLevels.includes(i);
+        const cellBlock = this.add.image(0, 0, isCompleted ? 'completed-block' : 'uncompleted-block');
+        cellBlock.setScale(LevelScene.CELL_SCALE);
+        cellContainer.add(cellBlock);
+
+        // Add cell number above the block
+        this.createCellNumber(cellContainer, cellBlock, i + 1);
+
+        // Add status icons (wrong/right)
+        this.createStatusIcons(cellContainer, cellBlock);
+
+        // Set correct icon visibility
+        this.updateStatusIcon(cellContainer, isCompleted);
+
+        // Make cell interactive
+        cellBlock.setInteractive();
+        cellBlock.on('pointerdown', () => this.onCellClick(i, cellContainer, cellBlock));
+
+        this.cells.push(cellContainer);
     }
+}
 
     private createCellNumber(cellContainer: Phaser.GameObjects.Container, cellBlock: Phaser.GameObjects.Image, levelNumber: number): void {
         const numberText = this.add.text(41, cellBlock.displayHeight * 0.2, levelNumber.toString(), {
@@ -166,29 +177,24 @@ export default class LevelScene extends Phaser.Scene {
     }
 
     private onCellClick(cellIndex: number, cellContainer: Phaser.GameObjects.Container, cellBlock: Phaser.GameObjects.Image): void {
-        // Toggle between completed and uncompleted block
-        const currentTexture = cellBlock.texture.key;
-        
-        if (currentTexture === 'uncompleted-block') {
-            cellBlock.setTexture('completed-block');
-            this.updateStatusIcon(cellContainer, true);
-            console.log(`Cell ${cellIndex + 1} completed`);
-        } else {
-            cellBlock.setTexture('uncompleted-block');
-            this.updateStatusIcon(cellContainer, false);
-            console.log(`Cell ${cellIndex + 1} uncompleted`);
-        }
+            // Start PlayScene with the selected level
+            this.scene.start('PlayScene', { levelNumber: cellIndex + 1 });
+    
     }
 
-    private clearAllCells(): void {
-        this.cells.forEach((cellContainer, index) => {
-            const cellBlock = cellContainer.list[0] as Phaser.GameObjects.Image;
-            cellBlock.setTexture('uncompleted-block');
-            this.resetStatusIcon(cellContainer);
-        });
-        
-        console.log('All cells cleared');
-    }
+private clearAllCells(): void {
+    // --- Clear completed levels from localStorage ---
+    localStorage.removeItem('completedLevels');
+    // ---
+
+    this.cells.forEach((cellContainer, index) => {
+        const cellBlock = cellContainer.list[0] as Phaser.GameObjects.Image;
+        cellBlock.setTexture('uncompleted-block');
+        this.resetStatusIcon(cellContainer);
+    });
+
+    console.log('All cells cleared');
+}
 
     private setupInteractions(): void {
         // Add keyboard support
@@ -235,6 +241,7 @@ export default class LevelScene extends Phaser.Scene {
         // Add click handler
         resetImage.on('pointerdown', () => {
             this.clearAllCells();
+            this.scene.restart();
         });
     }
 }

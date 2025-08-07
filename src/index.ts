@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import MainScene from "./scenes/MainScene";
 import LevelScene from "./scenes/LevelScene";
+import PlayScene from './scenes/PlayScene';
  
  
 const config: Phaser.Types.Core.GameConfig = {
@@ -19,14 +20,14 @@ const config: Phaser.Types.Core.GameConfig = {
     activePointers: 3,
   },
   physics: {
-    default: 'arcade',
+    default: 'matter',
     arcade: {
-      gravity: { x: 0, y: 1800 },
-      debug: false, // Set to false in production
+      gravity: { x: 0, y: 1 },
+      debug: true, // Set to false in production
     }
     
   },
-  scene: [MainScene,LevelScene]
+  scene: [MainScene,LevelScene,PlayScene]
 
 };
 
