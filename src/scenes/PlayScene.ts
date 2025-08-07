@@ -1,6 +1,47 @@
 import { levels, IlevelData } from '../Levels/LevelsData';
 
 export default class PlayScene extends Phaser.Scene {
+    // --- Magic Numbers as Constants ---
+    private static readonly BACK_BUTTON_X = 100;
+    private static readonly BACK_BUTTON_Y = 60;
+    private static readonly BACK_BUTTON_SCALE = 0.8;
+    private static readonly BACK_BUTTON_SCALE_HOVER = 0.9;
+
+    private static readonly LEVEL_TEXT_Y = 60;
+    private static readonly LEVEL_TEXT_SIZE = '48px';
+
+    private static readonly RAYS_SCALE = 5;
+    private static readonly RAYS_DEPTH = 0;
+    private static readonly FAIL_COMPLETE_DEPTH = 1;
+
+    private static readonly REFRESH_BUTTON_Y_OFFSET = 180;
+    private static readonly REFRESH_BUTTON_SCALE = 0.7;
+    private static readonly REFRESH_BUTTON_SCALE_HOVER = 0.8;
+    private static readonly REFRESH_BUTTON_DEPTH = 2;
+
+    private static readonly GROUND_Y_OFFSET = 30;
+    private static readonly GROUND_WIDTH_EXTRA = 20;
+    private static readonly GROUND_HEIGHT_RATIO = 1 / 7;
+
+    private static readonly BLOCK_STACK_OFFSET_X = 700;
+    private static readonly BLOCK_HEIGHT = 96;
+    private static readonly BLOCK_STACK_TOLERANCE = 10;
+
+    private static readonly PLAYER_SCALE = 0.8;
+    private static readonly PLAYER_BOUNCE = 0.2;
+
+    private static readonly PLAYER_MOVE_SPEED = 8;
+    private static readonly PLAYER_JUMP_SPEED = 15;
+    private static readonly PLAYER_JUMP_VELOCITY_TOLERANCE = 1;
+
+    private static readonly PLAYER_SAFE_BLOCK_TOLERANCE = 50;
+    private static readonly PLAYER_FAIL_Y_OFFSET = 50;
+
+    private static readonly DESTROY_BLOCK_DURATION = 200;
+
+    private static readonly COMPLETE_DELAY = 2000;
+
+    // --- Class Properties ---
     private player!: Phaser.Physics.Matter.Sprite;
     private blocks: Phaser.Physics.Matter.Sprite[] = [];
     private stoneBlocks: Phaser.Physics.Matter.Sprite[] = [];
@@ -58,8 +99,14 @@ export default class PlayScene extends Phaser.Scene {
             .setDisplaySize(Width, Height);
 
         // Ground as static matter body
-        this.ground = this.matter.add.image(Width / 2, Height - 30, 'ground', undefined, { isStatic: true })
-            .setDisplaySize(Width + 20, Height / 7)
+        this.ground = this.matter.add.image(
+            Width / 2,
+            Height - PlayScene.GROUND_Y_OFFSET,
+            'ground',
+            undefined,
+            { isStatic: true }
+        )
+            .setDisplaySize(Width + PlayScene.GROUND_WIDTH_EXTRA, Height * PlayScene.GROUND_HEIGHT_RATIO)
             .setOrigin(0.5, 0.5);
 
         // Clear block arrays
@@ -79,38 +126,63 @@ export default class PlayScene extends Phaser.Scene {
     }
 
     private createUI() {
-        this.backButton = this.add.image(100, 60, 'backArrow').setScale(0.8).setInteractive();
+        this.backButton = this.add.image(
+            PlayScene.BACK_BUTTON_X,
+            PlayScene.BACK_BUTTON_Y,
+            'backArrow'
+        ).setScale(PlayScene.BACK_BUTTON_SCALE).setInteractive();
         this.backButton.on('pointerdown', this.goBackToLevelScene, this);
-        this.backButton.on('pointerover', () => this.backButton.setScale(0.9));
-        this.backButton.on('pointerout', () => this.backButton.setScale(0.8));
+        this.backButton.on('pointerover', () => this.backButton.setScale(PlayScene.BACK_BUTTON_SCALE_HOVER));
+        this.backButton.on('pointerout', () => this.backButton.setScale(PlayScene.BACK_BUTTON_SCALE));
 
-        this.levelText = this.add.text(this.scale.width / 2, 60, `Level ${this.currentLevel + 1}`, {
-            fontSize: '48px',
-            color: '#ffffff',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
+        this.levelText = this.add.text(
+            this.scale.width / 2,
+            PlayScene.LEVEL_TEXT_Y,
+            `Level ${this.currentLevel + 1}`,
+            {
+                fontSize: PlayScene.LEVEL_TEXT_SIZE,
+                color: '#ffffff',
+                fontFamily: 'Arial',
+                fontStyle: 'bold'
+            }
+        ).setOrigin(0.5);
 
         // Add rays image behind fail and complete text, initially hidden
-        this.rays = this.add.image(this.scale.width / 2, this.scale.height / 2, 'rays')
-            .setScale(5)
+        this.rays = this.add.image(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            'rays'
+        )
+            .setScale(PlayScene.RAYS_SCALE)
             .setVisible(false)
-            .setDepth(0);
+            .setDepth(PlayScene.RAYS_DEPTH);
 
-        this.failText = this.add.image(this.scale.width / 2, this.scale.height / 2, 'FAIL')
+        this.failText = this.add.image(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            'FAIL'
+        )
             .setVisible(false)
-            .setDepth(1);
+            .setDepth(PlayScene.FAIL_COMPLETE_DEPTH);
 
-        this.completeText = this.add.image(this.scale.width / 2, this.scale.height / 2, 'COMPLETE')
+        this.completeText = this.add.image(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            'COMPLETE'
+        )
             .setVisible(false)
-            .setDepth(1);
+            .setDepth(PlayScene.FAIL_COMPLETE_DEPTH);
 
         // Refresh button, only visible on fail
-        this.refreshButton = this.add.image(this.scale.width / 2, this.scale.height / 2 + 180, 'Refresh')
-            .setScale(0.7)
+        this.refreshButton = this.add.image(
+            this.scale.width / 2,
+            this.scale.height / 2 + PlayScene.REFRESH_BUTTON_Y_OFFSET,
+            'Refresh'
+        )
+            .setScale(PlayScene.REFRESH_BUTTON_SCALE)
             .setVisible(false)
             .setInteractive()
-            .setDepth(2);
+            .setDepth(PlayScene.REFRESH_BUTTON_DEPTH);
 
         this.refreshButton.on('pointerdown', () => {
             this.refreshButton.setVisible(false);
@@ -118,8 +190,8 @@ export default class PlayScene extends Phaser.Scene {
             this.rays.setVisible(false);
             this.loadLevel(this.currentLevel);
         });
-        this.refreshButton.on('pointerover', () => this.refreshButton.setScale(0.8));
-        this.refreshButton.on('pointerout', () => this.refreshButton.setScale(0.7));
+        this.refreshButton.on('pointerover', () => this.refreshButton.setScale(PlayScene.REFRESH_BUTTON_SCALE_HOVER));
+        this.refreshButton.on('pointerout', () => this.refreshButton.setScale(PlayScene.REFRESH_BUTTON_SCALE));
     }
 
     private goBackToLevelScene() {
@@ -150,24 +222,24 @@ export default class PlayScene extends Phaser.Scene {
         if (this.player) this.player.destroy();
 
         const centerX = this.scale.width / 2;
-        const offsetX = centerX - 700;
+        const offsetX = centerX - PlayScene.BLOCK_STACK_OFFSET_X;
 
         this.player = this.matter.add.sprite(
             this.levelData.player.positions.x + offsetX,
             this.levelData.player.positions.y,
             'player'
-        ).setScale(0.8).setBounce(0.2);
+        ).setScale(PlayScene.PLAYER_SCALE).setBounce(PlayScene.PLAYER_BOUNCE);
     }
 
     // Stack blocks with vertical offset so they don't overlap
     private createBlocksFromLevelData() {
         const centerX = this.scale.width / 2;
-        const offsetX = centerX - 700;
-        const blockHeight = 96; // Adjust to your block sprite height
+        const offsetX = centerX - PlayScene.BLOCK_STACK_OFFSET_X;
+        const blockHeight = PlayScene.BLOCK_HEIGHT;
         let stackY = this.ground.y - this.ground.displayHeight / 2 - blockHeight / 2;
 
         const placed: { x: number, y: number }[] = [];
-        const tolerance = 10; // pixels
+        const tolerance = PlayScene.BLOCK_STACK_TOLERANCE;
 
         const isOccupied = (x: number, y: number) =>
             placed.some(pos => Math.abs(pos.x - x) < tolerance && Math.abs(pos.y - y) < tolerance);
@@ -253,7 +325,7 @@ export default class PlayScene extends Phaser.Scene {
             scaleX: 0,
             scaleY: 0,
             alpha: 0,
-            duration: 200,
+            duration: PlayScene.DESTROY_BLOCK_DURATION,
             onComplete: () => {
                 const destroyedX = block.x;
                 const destroyedY = block.y;
@@ -276,7 +348,7 @@ export default class PlayScene extends Phaser.Scene {
 
     // Helper: check if player is standing on a grass or platform block
     private isPlayerOnSafeBlock(): boolean {
-        const tolerance = 50;
+        const tolerance = PlayScene.PLAYER_SAFE_BLOCK_TOLERANCE;
         return (
             this.grassBlocks.some(block =>
                 Math.abs(this.player.x - block.x) < tolerance &&
@@ -288,59 +360,10 @@ export default class PlayScene extends Phaser.Scene {
             )
         );
     }
-private checkGameState() {
-    if (this.gameOver || this.gameCompleted) return;
+    private checkGameState() {
+        if (this.gameOver || this.gameCompleted) return;
 
-    if (this.player.y >= this.scale.height - 50) {
-        this.gameOver = true;
-        this.failText.setVisible(true);
-        this.rays.setVisible(true);
-        this.refreshButton.setVisible(true);
-        // No auto-restart!
-        return;
-    }
-
-    // Complete the game if all stone blocks are destroyed and player is on a safe block
-    if (this.stoneBlocks.length === 0 && this.isPlayerOnSafeBlock()) {
-        this.gameCompleted = true;
-        this.completeText.setVisible(true);
-        this.rays.setVisible(true);
-
-        // --- Store completed level in localStorage ---
-        const completedLevels = JSON.parse(localStorage.getItem('completedLevels') || '[]');
-        if (!completedLevels.includes(this.currentLevel)) {
-            completedLevels.push(this.currentLevel);
-            localStorage.setItem('completedLevels', JSON.stringify(completedLevels));
-        }
-        // ---
-
-        this.time.delayedCall(2000, () => {
-            this.completeText.setVisible(false);
-            this.rays.setVisible(false);
-            this.currentLevel++;
-            if (this.currentLevel >= this.levels.length) {
-                this.scene.start('LevelScene');
-            } else {
-                this.loadLevel(this.currentLevel);
-            }
-        });
-    }
-}
-
-    // (Optional) Animate when player touches baseStone or grassBox, but don't end game here
-private handleCollisions(event: Phaser.Physics.Matter.Events.CollisionStartEvent) {
-    if (this.gameCompleted || this.gameOver) return;
-
-    event.pairs.forEach(pair => {
-        const { bodyA, bodyB } = pair;
-        const spriteA = bodyA.gameObject as Phaser.Physics.Matter.Sprite;
-        const spriteB = bodyB.gameObject as Phaser.Physics.Matter.Sprite;
-
-        // Player touches ground: fail the game
-        if (
-            (spriteA === this.player && spriteB === this.ground) ||
-            (spriteB === this.player && spriteA === this.ground)
-        ) {
+        if (this.player.y >= this.scale.height - PlayScene.PLAYER_FAIL_Y_OFFSET) {
             this.gameOver = true;
             this.failText.setVisible(true);
             this.rays.setVisible(true);
@@ -349,10 +372,58 @@ private handleCollisions(event: Phaser.Physics.Matter.Events.CollisionStartEvent
             return;
         }
 
-        // You can add animation or sound here if needed
-    });
-}
-    
+        // Complete the game if all stone blocks are destroyed and player is on a safe block
+        if (this.stoneBlocks.length === 0 && this.isPlayerOnSafeBlock()) {
+            this.gameCompleted = true;
+            this.completeText.setVisible(true);
+            this.rays.setVisible(true);
+
+            // --- Store completed level in localStorage ---
+            const completedLevels = JSON.parse(localStorage.getItem('completedLevels') || '[]');
+            if (!completedLevels.includes(this.currentLevel)) {
+                completedLevels.push(this.currentLevel);
+                localStorage.setItem('completedLevels', JSON.stringify(completedLevels));
+            }
+            // ---
+
+            this.time.delayedCall(PlayScene.COMPLETE_DELAY, () => {
+                this.completeText.setVisible(false);
+                this.rays.setVisible(false);
+                this.currentLevel++;
+                if (this.currentLevel >= this.levels.length) {
+                    this.scene.start('LevelScene');
+                } else {
+                    this.loadLevel(this.currentLevel);
+                }
+            });
+        }
+    }
+
+    // (Optional) Animate when player touches baseStone or grassBox, but don't end game here
+    private handleCollisions(event: Phaser.Physics.Matter.Events.CollisionStartEvent) {
+        if (this.gameCompleted || this.gameOver) return;
+
+        event.pairs.forEach(pair => {
+            const { bodyA, bodyB } = pair;
+            const spriteA = bodyA.gameObject as Phaser.Physics.Matter.Sprite;
+            const spriteB = bodyB.gameObject as Phaser.Physics.Matter.Sprite;
+
+            // Player touches ground: fail the game
+            if (
+                (spriteA === this.player && spriteB === this.ground) ||
+                (spriteB === this.player && spriteA === this.ground)
+            ) {
+                this.gameOver = true;
+                this.failText.setVisible(true);
+                this.rays.setVisible(true);
+                this.refreshButton.setVisible(true);
+                // No auto-restart!
+                return;
+            }
+
+            // You can add animation or sound here if needed
+        });
+    }
 
     update() {
         if (this.gameOver || this.gameCompleted) {
@@ -364,18 +435,16 @@ private handleCollisions(event: Phaser.Physics.Matter.Events.CollisionStartEvent
         }
 
         if (this.cursors.left.isDown) {
-            this.player.setVelocityX(-8);
+            this.player.setVelocityX(-PlayScene.PLAYER_MOVE_SPEED);
         } else if (this.cursors.right.isDown) {
-            this.player.setVelocityX(8);
+            this.player.setVelocityX(PlayScene.PLAYER_MOVE_SPEED);
         } else {
             this.player.setVelocityX(0);
         }
 
         // Jump: check if player is touching down
-        if (this.cursors.up.isDown && Math.abs(this.player.body.velocity.y) < 1) {
-            this.player.setVelocityY(-15);
+        if (this.cursors.up.isDown && Math.abs(this.player.body.velocity.y) < PlayScene.PLAYER_JUMP_VELOCITY_TOLERANCE) {
+            this.player.setVelocityY(-PlayScene.PLAYER_JUMP_SPEED);
         }
-
-        this.checkGameState();
     }
 }
