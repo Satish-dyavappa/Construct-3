@@ -34,7 +34,7 @@ export default class PlayScene extends Phaser.Scene {
     private static readonly PLAYER_JUMP_SPEED = 15;
     private static readonly PLAYER_JUMP_VELOCITY_TOLERANCE = 1;
 
-    private static readonly PLAYER_SAFE_BLOCK_TOLERANCE = 50;
+    private static readonly PLAYER_SAFE_BLOCK_TOLERANCE = 120;
     private static readonly PLAYER_FAIL_Y_OFFSET = 50;
 
     private static readonly DESTROY_BLOCK_DURATION = 200;
@@ -347,30 +347,41 @@ export default class PlayScene extends Phaser.Scene {
     }
 
     // Helper: check if player is standing on a grass or platform block
-    private isPlayerOnSafeBlock(): boolean {
-        const tolerance = PlayScene.PLAYER_SAFE_BLOCK_TOLERANCE;
-        return (
-            this.grassBlocks.some(block =>
-                Math.abs(this.player.x - block.x) < tolerance &&
-                Math.abs(this.player.y - (block.y - block.height / 2)) < tolerance
-            ) ||
-            this.platformBlocks.some(block =>
-                Math.abs(this.player.x - block.x) < tolerance &&
-                Math.abs(this.player.y - (block.y - block.height / 2)) < tolerance
-            )
-        );
-    }
-    private checkGameState() {
-        if (this.gameOver || this.gameCompleted) return;
+private isPlayerOnSafeBlock(): boolean {
+    const tolerance = PlayScene.PLAYER_SAFE_BLOCK_TOLERANCE;
+    const playerFeetY = this.player.y + this.player.height / 2;
+    return (
+        this.grassBlocks.some(block =>
+            Math.abs(this.player.x - block.x) < tolerance &&
+            playerFeetY >= (block.y - block.height / 2) - 2 && // allow slight overlap
+            playerFeetY <= (block.y - block.height / 2) + tolerance
+        ) ||
+        this.platformBlocks.some(block =>
+            Math.abs(this.player.x - block.x) < tolerance &&
+            playerFeetY >= (block.y - block.height / 2) - 2 &&
+            playerFeetY <= (block.y - block.height / 2) + tolerance
+        )
+    );
+}
+private checkGameState() {
+    if (this.gameOver || this.gameCompleted) return;
 
-        if (this.player.y >= this.scale.height - PlayScene.PLAYER_FAIL_Y_OFFSET) {
-            this.gameOver = true;
-            this.failText.setVisible(true);
-            this.rays.setVisible(true);
-            this.refreshButton.setVisible(true);
-            // No auto-restart!
-            return;
-        }
+    if (this.player.y >= this.scale.height - PlayScene.PLAYER_FAIL_Y_OFFSET) {
+        // ...existing code...
+        return;
+    }
+    console.log("this.stoneBlocks:", this.stoneBlocks);
+    // Debug log
+    if (this.stoneBlocks.length === 0) {
+        console.log('Player position:', this.player.x, this.player.y);
+        console.log('Is player on safe block?', this.isPlayerOnSafeBlock());
+        console.log('Stone blocks remaining:', this.grassBlocks);
+    }
+
+    if (this.stoneBlocks.length === 0 && this.isPlayerOnSafeBlock()) {
+        // ...existing code...
+    }
+
 
         // Complete the game if all stone blocks are destroyed and player is on a safe block
         if (this.stoneBlocks.length === 0 && this.isPlayerOnSafeBlock()) {
