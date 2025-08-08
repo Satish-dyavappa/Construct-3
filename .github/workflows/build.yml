@@ -1,0 +1,45 @@
+name: blueteesgolf-POC
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Cache node modules
+        id: cache-npm
+        uses: actions/cache@v3
+        with:
+          # npm cache files are stored in `~/.npm` on Linux/macOS
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-            
+
+      - name: install dependencies
+        # Only run if the cache was not hit
+        if: steps.cache-npm.outputs.cache-hit != 'true'
+        run: npm install
+      
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: dist/
+
+      - name: Zip the dist folder
+        run: zip -r web-build.zip dist/
+
+      - name: Upload the build folder to the server
+        run: curl --form "build=@web-build.zip" https://internal.juegostudio.net/htmlUploader/build/upload
