@@ -96,19 +96,21 @@ export default class MainScene extends Phaser.Scene {
         
         // Add click event to continue
         this.input.on('pointerdown', () => {
-            // Try to enable fullscreen on user gesture
             if (!this.scale.isFullscreen) {
+                this.scale.once('enterfullscreen', () => {
+                    this.scene.start('LevelScene');
+                });
                 try {
                     this.scale.startFullscreen();
                 } catch (err) {
                     console.log('Fullscreen request failed:', err);
+                    this.scene.start('LevelScene'); // fallback
                 }
+            } else {
+                this.scene.start('LevelScene');
             }
-            
-            // Transition to next scene (change this to your actual next scene)
-            this.scene.start('LevelScene'); // or whatever your next scene is called
         });
-    }
+    }   
 
     private createLoadingGraphics(): void {
         const width = this.scale.width;

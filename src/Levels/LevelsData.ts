@@ -25,12 +25,13 @@ const level3: IlevelData = {
 }
 
 const level4: IlevelData = {
-   "player": { "positions": { x: 550, y: 260 } },
-   "baseStone": { "positions": { x: 460, y: 870 }},
-   "gateStone": { "positions": [{ x: 420, y: 658 }, { x: 520, y: 558 }, { x: 620, y: 628 }] },
-   "concrete": { "positions": [{ x: 370, y: 766 }, { x: 500, y: 420 }, { x: 540, y: 760 }, { x: 550, y: 320 }, { x: 580, y: 420 }] },
+   "player": { "positions": { x: 540, y: 260 } },
+   "baseStone": { "positions": { x: 460, y: 870 } },
+   "gateStone": { "positions": [{x: 460,y: 658},{x: 960,y: 768},{x: 460,y: 458}] },
+   "concrete": { "positions": [{ x: 370, y: 764 }, { x: 560, y: 760 },{ x: 390, y: 568 },{ x: 1060, y: 768 },{ x: 520, y: 568 },{ x: 540, y: 368 }] },
    "totalStoneCount": 8,
 }
+ 
 
 
 // Export as array for easier use

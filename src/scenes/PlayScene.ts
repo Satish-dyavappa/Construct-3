@@ -34,7 +34,9 @@ export default class PlayScene extends Phaser.Scene {
     private static readonly PLAYER_JUMP_SPEED = 15;
     private static readonly PLAYER_JUMP_VELOCITY_TOLERANCE = 1;
 
-    private static readonly PLAYER_SAFE_BLOCK_TOLERANCE = 120;
+    // vertical tolerance (pixels) when comparing player bottom to block top
+    private static readonly VERTICAL_TOLERANCE = 6;
+
     private static readonly PLAYER_FAIL_Y_OFFSET = 50;
 
     private static readonly DESTROY_BLOCK_DURATION = 200;
@@ -224,11 +226,24 @@ export default class PlayScene extends Phaser.Scene {
         const centerX = this.scale.width / 2;
         const offsetX = centerX - PlayScene.BLOCK_STACK_OFFSET_X;
 
+        // Create player sprite as matter body. setFixedRotation to prevent tipping.
         this.player = this.matter.add.sprite(
             this.levelData.player.positions.x + offsetX,
             this.levelData.player.positions.y,
             'player'
-        ).setScale(PlayScene.PLAYER_SCALE).setBounce(PlayScene.PLAYER_BOUNCE);
+        )
+            .setScale(PlayScene.PLAYER_SCALE)
+            .setBounce(PlayScene.PLAYER_BOUNCE);
+
+        // ensure player body's bounds reflect sprite size after scale
+        try {
+            // adjust the body to match the sprite display size
+            const pW = this.player.displayWidth;
+            const pH = this.player.displayHeight;
+            this.player.setRectangle(pW, pH, { chamfer: 0 });
+        } catch (e) {
+            // If setRectangle is not available or fails, ignore — the checks use body.bounds anyway
+        }
     }
 
     // Stack blocks with vertical offset so they don't overlap
@@ -289,6 +304,15 @@ export default class PlayScene extends Phaser.Scene {
         block.setData('originalY', y);
         block.setData('isFalling', false);
 
+        // Make sure the physics body matches the display size (helps bounds precision)
+        try {
+            const bW = block.displayWidth || block.width;
+            const bH = block.displayHeight || block.height;
+            block.setRectangle(bW, bH, { chamfer: 0 });
+        } catch (e) {
+            // ignore if setRectangle isn't available
+        }
+
         this.blocks.push(block);
 
         if (type === 'stone') {
@@ -347,41 +371,78 @@ export default class PlayScene extends Phaser.Scene {
     }
 
     // Helper: check if player is standing on a grass or platform block
-private isPlayerOnSafeBlock(): boolean {
-    const tolerance = PlayScene.PLAYER_SAFE_BLOCK_TOLERANCE;
-    const playerFeetY = this.player.y + this.player.height / 2;
-    return (
-        this.grassBlocks.some(block =>
-            Math.abs(this.player.x - block.x) < tolerance &&
-            playerFeetY >= (block.y - block.height / 2) - 2 && // allow slight overlap
-            playerFeetY <= (block.y - block.height / 2) + tolerance
-        ) ||
-        this.platformBlocks.some(block =>
-            Math.abs(this.player.x - block.x) < tolerance &&
-            playerFeetY >= (block.y - block.height / 2) - 2 &&
-            playerFeetY <= (block.y - block.height / 2) + tolerance
-        )
-    );
-}
-private checkGameState() {
-    if (this.gameOver || this.gameCompleted) return;
+    private isPlayerOnSafeBlock(): boolean {
+        if (!this.player || !this.player.body) return false;
 
-    if (this.player.y >= this.scale.height - PlayScene.PLAYER_FAIL_Y_OFFSET) {
-        // ...existing code...
-        return;
-    }
-    console.log("this.stoneBlocks:", this.stoneBlocks);
-    // Debug log
-    if (this.stoneBlocks.length === 0) {
-        console.log('Player position:', this.player.x, this.player.y);
-        console.log('Is player on safe block?', this.isPlayerOnSafeBlock());
-        console.log('Stone blocks remaining:', this.grassBlocks);
-    }
+        // Use Matter body bounds for precision
+        const playerBody = this.player.body as MatterJS.BodyType;
+        const playerBottom = playerBody.bounds.max.y;
+        const playerLeft = playerBody.bounds.min.x;
+        const playerRight = playerBody.bounds.max.x;
 
-    if (this.stoneBlocks.length === 0 && this.isPlayerOnSafeBlock()) {
-        // ...existing code...
+        const checkBlock = (block: Phaser.Physics.Matter.Sprite) => {
+            if (!block || !block.body) return false;
+
+            const blockBody = block.body as MatterJS.BodyType;
+            const blockTop = blockBody.bounds.min.y;
+            const blockLeft = blockBody.bounds.min.x;
+            const blockRight = blockBody.bounds.max.x;
+
+            // vertical alignment within tolerance
+            const verticalAligned = Math.abs(playerBottom - blockTop) <= PlayScene.VERTICAL_TOLERANCE;
+
+            // horizontal overlap
+            const horizontalOverlap = playerRight > blockLeft && playerLeft < blockRight;
+
+            return verticalAligned && horizontalOverlap;
+        };
+
+        const onGrass = this.grassBlocks.some(checkBlock);
+        const onPlatform = this.platformBlocks.some(checkBlock);
+
+        return onGrass || onPlatform;
     }
 
+    private checkGameState() {
+        if (this.gameOver || this.gameCompleted) return;
+
+        if (this.player.y >= this.scale.height - PlayScene.PLAYER_FAIL_Y_OFFSET) {
+            // player fell — fail
+            this.gameOver = true;
+            this.failText.setVisible(true);
+            this.rays.setVisible(true);
+            this.refreshButton.setVisible(true);
+            return;
+        }
+
+        console.log("this.stoneBlocks:", this.stoneBlocks);
+
+        if (this.stoneBlocks.length === 0) {
+            // debug: print player position and exact physics checks
+            console.log('Player position (center):', this.player.x, this.player.y);
+            const safe = this.isPlayerOnSafeBlock();
+            console.log('Is player on safe block?', safe);
+
+            // print arrays counts properly
+            console.log('Grass blocks remaining:', this.grassBlocks.length, 'Platform blocks remaining:', this.platformBlocks.length);
+
+            // if not safe, print numeric comparison to help debug
+            if (!safe) {
+                // show player bottom and block tops for easier debugging
+                const playerBody = this.player.body as MatterJS.BodyType;
+                const playerBottom = playerBody.bounds.max.y;
+                console.log('playerBottom:', playerBottom);
+
+                this.grassBlocks.concat(this.platformBlocks).forEach((block, idx) => {
+                    if (!block || !block.body) return;
+                    const b = block.body as MatterJS.BodyType;
+                    const blockTop = b.bounds.min.y;
+                    const blockLeft = b.bounds.min.x;
+                    const blockRight = b.bounds.max.x;
+                    console.log(`block[${idx}] top:${blockTop} left:${blockLeft} right:${blockRight}`);
+                });
+            }
+        }
 
         // Complete the game if all stone blocks are destroyed and player is on a safe block
         if (this.stoneBlocks.length === 0 && this.isPlayerOnSafeBlock()) {
@@ -437,25 +498,42 @@ private checkGameState() {
     }
 
     update() {
-        if (this.gameOver || this.gameCompleted) {
-            // Rotate rays if visible
-            if (this.rays.visible) {
-                this.rays.rotation += 0.03;
-            }
-            return;
+    if (this.gameOver || this.gameCompleted) {
+        // Rotate rays if visible
+        if (this.rays.visible) {
+            this.rays.rotation += 0.03;
         }
-
-        if (this.cursors.left.isDown) {
-            this.player.setVelocityX(-PlayScene.PLAYER_MOVE_SPEED);
-        } else if (this.cursors.right.isDown) {
-            this.player.setVelocityX(PlayScene.PLAYER_MOVE_SPEED);
-        } else {
-            this.player.setVelocityX(0);
-        }
-
-        // Jump: check if player is touching down
-        if (this.cursors.up.isDown && Math.abs(this.player.body.velocity.y) < PlayScene.PLAYER_JUMP_VELOCITY_TOLERANCE) {
-            this.player.setVelocityY(-PlayScene.PLAYER_JUMP_SPEED);
-        }
+        return;
     }
+
+    let direction = 0;
+    if (this.cursors.left.isDown) {
+        direction = -1;
+    } else if (this.cursors.right.isDown) {
+        direction = 1;
+    }
+
+    switch (direction) {
+        case -1:
+            this.player.setVelocityX(-PlayScene.PLAYER_MOVE_SPEED);
+            break;
+        case 1:
+            this.player.setVelocityX(PlayScene.PLAYER_MOVE_SPEED);
+            break;
+        default:
+            this.player.setVelocityX(0);
+            break;
+    }
+
+    // Jump: check if player is touching down
+    if (
+        this.cursors.up.isDown &&
+        Math.abs(this.player.body.velocity.y) < PlayScene.PLAYER_JUMP_VELOCITY_TOLERANCE
+    ) {
+        this.player.setVelocityY(-PlayScene.PLAYER_JUMP_SPEED);
+    }
+
+    // Continuously check game state (you can lower frequency if needed)
+    this.checkGameState();
+}
 }
