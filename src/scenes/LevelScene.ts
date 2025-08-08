@@ -76,7 +76,8 @@ export default class LevelScene extends Phaser.Scene {
         const bg = this.add.image(width / 2, height / 2, 'prison-bg');
         bg.setDisplaySize(width, height);
     }
-private createCells(width: number, height: number): void {
+    
+    private createCells(width: number, height: number): void {
     // Clear previous cells to avoid duplicates after restart
     this.cells.forEach(cell => cell.destroy());
     this.cells = [];
@@ -87,6 +88,8 @@ private createCells(width: number, height: number): void {
 
     // --- Get completed levels from localStorage ---
     const completedLevels: number[] = JSON.parse(localStorage.getItem('completedLevels') || '[]');
+    // Find highest unlocked level (next after last completed)
+    const highestUnlocked = completedLevels.length;
     // ---
 
     for (let i = 0; i < LevelScene.CELL_COUNT; i++) {
@@ -96,6 +99,7 @@ private createCells(width: number, height: number): void {
 
         // --- Use completed-block if completed ---
         const isCompleted = completedLevels.includes(i);
+        const isUnlocked = i <= highestUnlocked; // Only next level unlocked
         const cellBlock = this.add.image(0, 0, isCompleted ? 'completed-block' : 'uncompleted-block');
         cellBlock.setScale(LevelScene.CELL_SCALE);
         cellContainer.add(cellBlock);
@@ -109,9 +113,16 @@ private createCells(width: number, height: number): void {
         // Set correct icon visibility
         this.updateStatusIcon(cellContainer, isCompleted);
 
-        // Make cell interactive
-        cellBlock.setInteractive();
-        cellBlock.on('pointerdown', () => this.onCellClick(i, cellContainer, cellBlock));
+        if (isUnlocked) {
+            // Make cell interactive
+            cellBlock.setInteractive();
+            cellBlock.setAlpha(1);
+            cellBlock.on('pointerdown', () => this.onCellClick(i, cellContainer, cellBlock));
+        } else {
+            // Dim locked cells and make not interactive
+            cellBlock.setAlpha(1);
+            cellBlock.disableInteractive();
+        }
 
         this.cells.push(cellContainer);
     }
@@ -182,19 +193,19 @@ private createCells(width: number, height: number): void {
     
     }
 
-private clearAllCells(): void {
-    // --- Clear completed levels from localStorage ---
-    localStorage.removeItem('completedLevels');
-    // ---
+    private clearAllCells(): void {
+        // --- Clear completed levels from localStorage ---
+        localStorage.removeItem('completedLevels');
+        // ---
 
-    this.cells.forEach((cellContainer, index) => {
-        const cellBlock = cellContainer.list[0] as Phaser.GameObjects.Image;
-        cellBlock.setTexture('uncompleted-block');
-        this.resetStatusIcon(cellContainer);
-    });
+        this.cells.forEach((cellContainer, index) => {
+            const cellBlock = cellContainer.list[0] as Phaser.GameObjects.Image;
+            cellBlock.setTexture('uncompleted-block');
+            this.resetStatusIcon(cellContainer);
+        });
 
-    console.log('All cells cleared');
-}
+        console.log('All cells cleared');
+    }
 
     private setupInteractions(): void {
         // Add keyboard support
